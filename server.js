@@ -120,6 +120,7 @@ async function transformOrder(shopifyOrder) {
     line_items: lineItems,
     shipping_lines: shopifyOrder.shipping_lines?.map(line => ({
       method_title: line.title,
+      method_id: 'flat_rate',
       total: line.price
     })) || [],
     customer_note: `Order synced from Shopify #${shopifyOrder.order_number}`,
@@ -173,3 +174,4 @@ app.listen(PORT, () => {
   console.log(`- WC_CONSUMER_SECRET: ${WC_CONSUMER_SECRET ? 'Set' : 'MISSING'}`);
   console.log(`- SHOPIFY_WEBHOOK_SECRET: ${SHOPIFY_WEBHOOK_SECRET ? 'Set' : 'MISSING'}`);
 });
+
