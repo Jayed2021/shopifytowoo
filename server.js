@@ -92,21 +92,44 @@ async function transformOrder(shopifyOrder) {
     })
   );
 
+  // Helper function to validate and get email
+  const getValidEmail = (emailStr) => {
+    if (!emailStr) return '';
+    // Basic email validation
+    const emailRegex = /^[^s@]+@[^s@]+.[^s@]+$/;
+    return emailRegex.test(emailStr) ? emailStr : '';
+  };
+
+  // Get customer email - validate it or leave empty
+  const customerEmail = getValidEmail(shopifyOrder.email || shopifyOrder.contact_email);
+
+  // Get phone number - prefer shipping address phone, fallback to billing
+  const customerPhone = shopifyOrder.shipping_address?.phone || 
+                       shopifyOrder.billing_address?.phone || 
+                       shopifyOrder.phone || '';
+
+  // Build billing object - only include email if valid
+  const billing = {
+    first_name: shopifyOrder.billing_address?.first_name || shopifyOrder.customer?.first_name || '',
+    last_name: shopifyOrder.billing_address?.last_name || shopifyOrder.customer?.last_name || '',
+    address_1: shopifyOrder.billing_address?.address1 || '',
+    address_2: shopifyOrder.billing_address?.address2 || '',
+    city: shopifyOrder.billing_address?.city || '',
+    state: shopifyOrder.billing_address?.province_code || '',
+    postcode: shopifyOrder.billing_address?.zip || '',
+    country: shopifyOrder.billing_address?.country_code || '',
+    phone: customerPhone
+  };
+
+  // Only add email if it's valid
+  if (customerEmail) {
+    billing.email = customerEmail;
+  }
+
   // Build WooCommerce order object
   return {
     status: 'processing',
-    billing: {
-      first_name: shopifyOrder.billing_address?.first_name || '',
-      last_name: shopifyOrder.billing_address?.last_name || '',
-      address_1: shopifyOrder.billing_address?.address1 || '',
-      address_2: shopifyOrder.billing_address?.address2 || '',
-      city: shopifyOrder.billing_address?.city || '',
-      state: shopifyOrder.billing_address?.province_code || '',
-      postcode: shopifyOrder.billing_address?.zip || '',
-      country: shopifyOrder.billing_address?.country_code || '',
-      email: shopifyOrder.email || '',
-      phone: shopifyOrder.billing_address?.phone || ''
-    },
+    billing: billing,
     shipping: {
       first_name: shopifyOrder.shipping_address?.first_name || '',
       last_name: shopifyOrder.shipping_address?.last_name || '',
