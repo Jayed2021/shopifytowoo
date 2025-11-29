@@ -118,10 +118,10 @@ async function transformOrder(shopifyOrder) {
       country: shopifyOrder.shipping_address?.country_code || ''
     },
     line_items: lineItems,
-    shipping_lines: shopifyOrder.shipping_lines?.map(line => ({
-      method_title: line.title,
+    shipping_lines: shopifyOrder.shipping_lines?.map((line, index) => ({
       method_id: 'flat_rate',
-      total: line.price
+      method_title: line.title || 'Shipping',
+      total: line.price || '0'
     })) || [],
     customer_note: `Order synced from Shopify #${shopifyOrder.order_number}`,
     meta_data: [
@@ -174,4 +174,3 @@ app.listen(PORT, () => {
   console.log(`- WC_CONSUMER_SECRET: ${WC_CONSUMER_SECRET ? 'Set' : 'MISSING'}`);
   console.log(`- SHOPIFY_WEBHOOK_SECRET: ${SHOPIFY_WEBHOOK_SECRET ? 'Set' : 'MISSING'}`);
 });
-
