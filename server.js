@@ -5,7 +5,6 @@ const axios = require('axios');
 require('dotenv').config();
 
 const app = express();
-app.use(express.json());
 
 // Configuration from environment variables
 const SHOPIFY_WEBHOOK_SECRET = process.env.SHOPIFY_WEBHOOK_SECRET;
@@ -14,28 +13,29 @@ const WC_CONSUMER_KEY = process.env.WC_CONSUMER_KEY;
 const WC_CONSUMER_SECRET = process.env.WC_CONSUMER_SECRET;
 
 // Verify Shopify webhook signature
-function verifyShopifyWebhook(req, res, buf) {
-  const hmac = req.get('X-Shopify-Hmac-Sha256');
-  if (!hmac) return false;
+function verifyShopifyWebhook(rawBody, hmacHeader) {
+  if (!hmacHeader) return false;
   
   const hash = crypto
     .createHmac('sha256', SHOPIFY_WEBHOOK_SECRET)
-    .update(buf)
+    .update(rawBody, 'utf8')
     .digest('base64');
   
   return crypto.timingSafeEqual(
     Buffer.from(hash),
-    Buffer.from(hmac)
+    Buffer.from(hmacHeader)
   );
 }
 
-// Webhook endpoint
+// Webhook endpoint - use raw body parser for this route only
 app.post('/webhook/shopify/order-create', 
   express.raw({ type: 'application/json' }),
   async (req, res) => {
     try {
+      const hmac = req.get('X-Shopify-Hmac-Sha256');
+      
       // Verify webhook authenticity
-      if (!verifyShopifyWebhook(req, res, req.body)) {
+      if (!verifyShopifyWebhook(req.body, hmac)) {
         console.log('Invalid webhook signature');
         return res.status(401).send('Unauthorized');
       }
@@ -159,12 +159,17 @@ async function findProductBySKU(sku) {
   }
 }
 
-// Health check endpoint
-app.get('/health', (req, res) => {
+// Health check endpoint - needs JSON parser
+app.get('/health', express.json(), (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Webhook server running on port ${PORT}`);
+  console.log(`Environment check:`);
+  console.log(`- WC_URL: ${WC_URL ? 'Set' : 'MISSING'}`);
+  console.log(`- WC_CONSUMER_KEY: ${WC_CONSUMER_KEY ? 'Set' : 'MISSING'}`);
+  console.log(`- WC_CONSUMER_SECRET: ${WC_CONSUMER_SECRET ? 'Set' : 'MISSING'}`);
+  console.log(`- SHOPIFY_WEBHOOK_SECRET: ${SHOPIFY_WEBHOOK_SECRET ? 'Set' : 'MISSING'}`);
 });
