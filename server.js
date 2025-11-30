@@ -178,9 +178,9 @@ async function checkOrderExists(shopifyOrderId) {
       `${WC_URL}/wp-json/wc/v3/orders`,
       {
         params: { 
-          meta_key: '_shopify_order_id',
-          meta_value: shopifyOrderId.toString(),
-          per_page: 1
+          per_page: 100,
+          orderby: 'id',
+          order: 'desc'
         },
         auth: {
           username: WC_CONSUMER_KEY,
@@ -189,9 +189,24 @@ async function checkOrderExists(shopifyOrderId) {
       }
     );
     
-    return response.data.length > 0 ? response.data[0] : null;
+    // Manually search through orders for matching Shopify order ID
+    const existingOrder = response.data.find(order => {
+      const shopifyOrderMeta = order.meta_data?.find(
+        meta => meta.key === '_shopify_order_id'
+      );
+      return shopifyOrderMeta && shopifyOrderMeta.value === shopifyOrderId.toString();
+    });
+    
+    if (existingOrder) {
+      console.log(`Found existing order: WC #${existingOrder.id} matches Shopify order ID ${shopifyOrderId}`);
+    } else {
+      console.log(`No existing order found for Shopify order ID ${shopifyOrderId}`);
+    }
+    
+    return existingOrder || null;
   } catch (error) {
     console.error('Error checking for existing order:', error.message);
+    // If check fails, allow order creation to proceed (fail open)
     return null;
   }
 }
