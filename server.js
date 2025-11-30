@@ -43,6 +43,17 @@ app.post('/webhook/shopify/order-create',
       const order = JSON.parse(req.body.toString());
       console.log(`Received Shopify order: #${order.order_number}`);
 
+      // Check if order already exists in WooCommerce
+      const existingOrder = await checkOrderExists(order.id);
+      if (existingOrder) {
+        console.log(`Order #${order.order_number} already exists in WooCommerce (ID: ${existingOrder.id}). Skipping duplicate.`);
+        return res.status(200).json({ 
+          success: true, 
+          message: 'Order already exists',
+          wc_order_id: existingOrder.id 
+        });
+      }
+
       // Transform Shopify order to WooCommerce format
       const wcOrder = await transformOrder(order);
       
@@ -158,6 +169,31 @@ async function transformOrder(shopifyOrder) {
       }
     ]
   };
+}
+
+// Check if order already exists in WooCommerce by Shopify order ID
+async function checkOrderExists(shopifyOrderId) {
+  try {
+    const response = await axios.get(
+      `${WC_URL}/wp-json/wc/v3/orders`,
+      {
+        params: { 
+          meta_key: '_shopify_order_id',
+          meta_value: shopifyOrderId.toString(),
+          per_page: 1
+        },
+        auth: {
+          username: WC_CONSUMER_KEY,
+          password: WC_CONSUMER_SECRET
+        }
+      }
+    );
+    
+    return response.data.length > 0 ? response.data[0] : null;
+  } catch (error) {
+    console.error('Error checking for existing order:', error.message);
+    return null;
+  }
 }
 
 // Find WooCommerce product by SKU
